@@ -33,6 +33,10 @@ static const char *KW_PY =
 
 static const char *KW_JSON = "true false null";
 
+static const char *KW_SH =
+    "if then else elif fi for while until do done case esac in function select time return exit break "
+    "continue local export readonly declare unset shift source alias eval exec trap set test true false";
+
 /* Sets kinds[from..to) to kind. */
 static void mark(unsigned char *k, int from, int to, int kind) {
     for (int m = from; m < to; m++) k[m] = (unsigned char)kind;
@@ -232,6 +236,79 @@ static void scan_md(const char *t, int len, unsigned char *k) {
     if (len > 0 && t[0] == '#') mark(k, 0, len, TK_HEADING);
 }
 
+/* Shell: '#' comments (only where a word starts, so $# and ${#x} stay plain), "..." and '...'
+   strings, $VAR and $1 left plain, keywords. Each line is independent. */
+static void scan_sh(const char *t, int len, unsigned char *k) {
+    int dummy = 0;
+    int i = 0;
+    while (i < len) {
+        char c = t[i];
+        if (c == '\\') {   /* escaped character outside quotes: plain */
+            i += 2;
+            continue;
+        }
+        if (c == '#' && (i == 0 || t[i - 1] == ' ' || t[i - 1] == '\t' || t[i - 1] == ';'
+                         || t[i - 1] == '&' || t[i - 1] == '|' || t[i - 1] == '(')) {
+            mark(k, i, len, TK_COMMENT);
+            break;
+        }
+        if (c == '$') {
+            int j = i + 1;
+            if (j < len && t[j] == '\'') {   /* $'...' ANSI-C string: backslash escapes */
+                int e = j + 1;
+                while (e < len && t[e] != '\'') e += (t[e] == '\\') ? 2 : 1;
+                if (e > len) e = len;
+                if (e < len) e++;
+                mark(k, i, e, TK_STRING);
+                i = e;
+                continue;
+            }
+            if (j < len && t[j] == '"') {    /* $"..." is a double-quoted string */
+                i = mark_str(t, len, j, j + 1, '"', 0, k, &dummy);
+                continue;
+            }
+            if (j < len && t[j] == '{') {
+                while (j < len && t[j] != '}') j++;
+                if (j < len) j++;
+            } else if (j < len && (isalnum(UC(t[j])) || t[j] == '_')) {
+                while (j < len && is_ident(t[j])) j++;
+            } else if (j < len) {
+                j++;   /* $#, $?, $$, $@ ... */
+            }
+            i = j;
+            continue;
+        }
+        if (c == '"') {
+            i = mark_str(t, len, i, i + 1, '"', 0, k, &dummy);
+            continue;
+        }
+        if (c == '\'') {   /* no escapes inside single quotes */
+            int j = i + 1;
+            while (j < len && t[j] != '\'') j++;
+            if (j < len) j++;
+            mark(k, i, j, TK_STRING);
+            i = j;
+            continue;
+        }
+        if (isdigit(UC(c))) {
+            int j = i + 1;
+            while (j < len && (isalnum(UC(t[j])) || t[j] == '.' || t[j] == '_')) j++;
+            mark(k, i, j, TK_NUMBER);
+            i = j;
+            continue;
+        }
+        if (isalpha(UC(c)) || c == '_') {
+            int j = i + 1;
+            while (j < len && is_ident(t[j])) j++;
+            /* -if, --export are options, not keywords */
+            if (!(i > 0 && t[i - 1] == '-') && is_word_in(KW_SH, t + i, j - i)) mark(k, i, j, TK_KEYWORD);
+            i = j;
+            continue;
+        }
+        i++;
+    }
+}
+
 /* INI: ';' or '#' comments and [section] headings, after optional indent. */
 static void scan_ini(const char *t, int len, unsigned char *k) {
     int p = 0;
@@ -241,12 +318,25 @@ static void scan_ini(const char *t, int len, unsigned char *k) {
     else if (t[p] == '[') mark(k, p, len, TK_HEADING);
 }
 
+/* Dot-files without a usable extension (~/.bashrc, ~/.zshrc, ...) that are shell scripts. */
+static int sh_dotfile(const char *base) {
+    static const char *names[] = {
+        "bashrc", "bash_profile", "bash_aliases", "bash_logout", "profile",
+        "zshrc", "zprofile", "zshenv", "zlogin", "zlogout", "kshrc", "mkshrc",
+    };
+    if (base[0] != '.') return 0;
+    for (size_t n = 0; n < sizeof names / sizeof names[0]; n++)
+        if (strcmp(base + 1, names[n]) == 0) return 1;
+    return 0;
+}
+
 SynLang syntax_lang_for(const char *filename) {
-    const char *dot = NULL;
+    const char *dot = NULL, *base = filename;
     for (const char *p = filename; *p; p++) {
-        if (*p == '/' || *p == '\\') dot = NULL;
+        if (*p == '/' || *p == '\\') { dot = NULL; base = p + 1; }
         else if (*p == '.') dot = p;
     }
+    if (sh_dotfile(base)) return SYN_SH;
     if (!dot || !dot[1]) return SYN_PLAIN;
 
     static const struct { const char *ext; SynLang lang; } table[] = {
@@ -259,6 +349,7 @@ SynLang syntax_lang_for(const char *filename) {
         {"json", SYN_JSON},
         {"md", SYN_MD}, {"markdown", SYN_MD},
         {"ini", SYN_INI},
+        {"sh", SYN_SH}, {"bash", SYN_SH}, {"zsh", SYN_SH}, {"ksh", SYN_SH},
     };
     const char *ext = dot + 1;
     for (size_t n = 0; n < sizeof table / sizeof table[0]; n++) {
@@ -290,6 +381,9 @@ int syntax_scan_line(SynLang lang, int st, const char *t, int len, unsigned char
             break;
         case SYN_INI:
             scan_ini(t, len, k);
+            break;
+        case SYN_SH:
+            scan_sh(t, len, k);
             break;
         default:
             break;
@@ -326,7 +420,7 @@ SynLang syntax_lang_effective(const char *filename, int override) {
 }
 
 const char *syntax_lang_name(SynLang lang) {
-    static const char *names[] = {"Plain", "C/C++", "JS/TS", "PHP", "Python", "JSON", "Markdown", "INI"};
-    if (lang < 0 || lang > SYN_INI) return names[0];
+    static const char *names[] = {"Plain", "C/C++", "JS/TS", "PHP", "Python", "JSON", "Markdown", "INI", "Shell"};
+    if (lang < 0 || lang > SYN_SH) return names[0];
     return names[lang];
 }

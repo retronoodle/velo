@@ -119,6 +119,40 @@ static void test_md_ini(void) {
     CHECK(k[0] == TK_PLAIN && all_kind(k, 2, 8, TK_COMMENT), "ini comment after indent");
 }
 
+static void test_sh(void) {
+    unsigned char k[256];
+    scan(SYN_SH, SYN_ST_NONE, "if [ -f \"$1\" ]; then # check", k);
+    /* "if [ -f \"$1\" ]; then # check": if at 0, "$1" string at 8..11, then at 16..19, # at 21 */
+    CHECK(all_kind(k, 0, 2, TK_KEYWORD), "if is a keyword");
+    CHECK(k[3] == TK_PLAIN, "bracket is plain");
+    CHECK(all_kind(k, 8, 12, TK_STRING), "double-quoted string");
+    CHECK(all_kind(k, 16, 20, TK_KEYWORD), "then is a keyword");
+    CHECK(all_kind(k, 21, 28, TK_COMMENT), "hash after space is a comment");
+
+    /* "echo $# ${#x} $HOME $if" */
+    scan(SYN_SH, SYN_ST_NONE, "echo $# ${#x} $HOME $if", k);
+    CHECK(all_kind(k, 5, 7, TK_PLAIN), "$# is not a comment");
+    CHECK(all_kind(k, 8, 13, TK_PLAIN), "${#x} is not a comment");
+    CHECK(all_kind(k, 20, 23, TK_PLAIN), "$if is not a keyword");
+
+    /* "echo 'it s' 42 --export" */
+    scan(SYN_SH, SYN_ST_NONE, "echo 'it s' 42 --export", k);
+    CHECK(all_kind(k, 5, 11, TK_STRING), "single-quoted string");
+    CHECK(k[12] == TK_NUMBER, "number");
+    CHECK(all_kind(k, 15, 23, TK_PLAIN), "--export option is not a keyword");
+    CHECK(syntax_lang_for("build.sh") == SYN_SH && syntax_lang_for("rc.BASH") == SYN_SH, "shell extensions");
+    CHECK(syntax_lang_for("/home/me/.bashrc") == SYN_SH && syntax_lang_for("~/.zshrc") == SYN_SH,
+          "shell dot-files");
+    CHECK(syntax_lang_for("/home/me/.bashrc.txt") == SYN_PLAIN && syntax_lang_for(".vimrc") == SYN_PLAIN,
+          "other dot-files stay plain");
+    scan(SYN_SH, SYN_ST_NONE, "echo it\\'s fine # ok", k);
+    CHECK(all_kind(k, 0, 16, TK_PLAIN) && all_kind(k, 16, 20, TK_COMMENT), "escaped quote is not a string");
+    scan(SYN_SH, SYN_ST_NONE, "printf $'%s\\n' a; echo 'b' # c", k);
+    CHECK(all_kind(k, 7, 14, TK_STRING) && all_kind(k, 23, 26, TK_STRING), "$'...' is one string");
+    CHECK(all_kind(k, 27, 30, TK_COMMENT), "comment after $'...' is still a comment");
+    CHECK(strcmp(syntax_lang_name(SYN_SH), "Shell") == 0, "shell name");
+}
+
 static void test_sgr(void) {
     CHECK(syntax_sgr(TK_KEYWORD, 0) != syntax_sgr(TK_PLAIN, 0), "keyword has its own color");
     CHECK(strcmp(syntax_sgr(TK_STRING, 1), syntax_sgr(TK_STRING, 2)) != 0, "schemes differ");
@@ -142,6 +176,7 @@ int main(void) {
     test_py();
     test_json();
     test_md_ini();
+    test_sh();
     test_sgr();
 
     printf("%d checks, %d failures\n", checks, failures);

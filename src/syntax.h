@@ -10,7 +10,8 @@ typedef enum {
     SYN_PY,
     SYN_JSON,
     SYN_MD,
-    SYN_INI
+    SYN_INI,
+    SYN_SH        /* shell: sh, bash, zsh, ksh */
 } SynLang;
 
 /* Token kinds, one per byte. */

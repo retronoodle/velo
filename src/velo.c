@@ -84,7 +84,7 @@ static int run_action(int action) {
             options_cycle(action);
             break;
         case ACT_LANGUAGE:   /* per file, not saved: Auto, Plain, then each language */
-            editor.syn_override = (editor.syn_override + 1) % 9;
+            editor.syn_override = (editor.syn_override + 1) % 10;
             break;
         case ACT_AI_SETUP:   ai_setup(); break;
         case ACT_AI_ASK:     ai_ask_selection(); break;
