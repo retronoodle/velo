@@ -12,6 +12,7 @@
 #include "fileops.h"
 #include "filetree.h"
 #include "files.h"
+#include "gitstat.h"
 #include "menu.h"
 #include "options.h"
 #include "sidebar.h"
@@ -25,6 +26,7 @@
 #else
     #include <dirent.h>
     #include <sys/stat.h>
+    #include <sys/wait.h>
     #include <unistd.h>
 #endif
 
@@ -50,6 +52,12 @@ static const char *const popup_items[] = {"New File", "New Folder", "Copy", "Pas
 
 static int click_pending = 0, click_row = -1;
 static unsigned long click_ms = 0;
+
+static GitStat gstat;                /* git status of the tree's folder, for coloring rows */
+static int git_stale = 1;            /* reload on the next draw (the tree changed) */
+static unsigned long git_next_ms = 0;
+static unsigned long git_last_ms = 0;   /* when load_git last ran */
+#define GIT_EVERY_MS 3000
 
 /* ---- Disk access ---- */
 
@@ -171,6 +179,110 @@ static unsigned long long dirs_stamp(void) {
     return sum;
 }
 
+/* ---- Git status colors ---- */
+
+/* Reads all of a command's stdout (NUL bytes kept). Returns a malloc'd buffer, or NULL when the
+   command fails to run or exits non-zero. */
+static char *read_cmd(const char *cmd, size_t *len) {
+#ifdef _WIN32
+    FILE *p = _popen(cmd, "rb");
+#else
+    FILE *p = popen(cmd, "r");
+#endif
+    if (!p) return NULL;
+    size_t cap = 4096, n = 0;
+    char *buf = malloc(cap);
+    size_t got;
+    while (buf && (got = fread(buf + n, 1, cap - n - 1, p)) > 0) {
+        n += got;
+        if (n + 1 >= cap) {
+            char *nb = realloc(buf, cap * 2);
+            if (!nb) { free(buf); buf = NULL; break; }
+            buf = nb;
+            cap *= 2;
+        }
+    }
+#ifdef _WIN32
+    int rc = _pclose(p);
+#else
+    int rc = pclose(p);
+    rc = (WIFEXITED(rc) && WEXITSTATUS(rc) == 0) ? 0 : -1;
+#endif
+    if (!buf) return NULL;
+    if (rc != 0) { free(buf); return NULL; }
+    buf[n] = '\0';
+    *len = n;
+    return buf;
+}
+
+/* Quotes `s` for the shell. Returns 0 when it does not fit. */
+static int shell_quote(char *dst, size_t size, const char *s) {
+#ifdef _WIN32
+    const char q = '"';
+    if (strchr(s, '"') || strchr(s, '%')) return 0;
+#else
+    const char q = '\'';
+#endif
+#ifdef _WIN32
+    const char *s0 = s;
+#endif
+    size_t n = 0;
+    if (n + 1 >= size) return 0;
+    dst[n++] = q;
+    for (; *s; s++) {
+#ifndef _WIN32
+        if (*s == '\'') {
+            if (n + 4 >= size) return 0;
+            memcpy(dst + n, "'\\''", 4);
+            n += 4;
+            continue;
+        }
+#endif
+        if (n + 2 >= size) return 0;
+        dst[n++] = *s;
+    }
+#ifdef _WIN32
+    /* Backslashes right before the closing quote would escape it: double them. */
+    for (const char *e = s; e > s0 && e[-1] == '\\'; e--) {
+        if (n + 2 >= size) return 0;
+        dst[n++] = '\\';
+    }
+#endif
+    dst[n++] = q;
+    dst[n] = '\0';
+    return 1;
+}
+
+/* Re-reads `git status` for the root folder. Not a repo, or no git: nothing gets colored. */
+static void load_git(void) {
+    git_stale = 0;
+    unsigned long t0 = term_ticks_ms();
+    git_last_ms = t0;
+    char q[PATH_LEN * 2 + 8], cmd[PATH_LEN * 2 + 128];
+    if (!root[0] || !shell_quote(q, sizeof q, root)) { gitstat_free(&gstat); return; }
+#ifdef _WIN32
+    const char *quiet = "2>nul";
+#else
+    const char *quiet = "2>/dev/null";
+#endif
+    size_t len = 0;
+    snprintf(cmd, sizeof cmd, "git -C %s rev-parse --show-prefix %s", q, quiet);
+    char *pre = read_cmd(cmd, &len);
+    if (!pre) { gitstat_free(&gstat); git_next_ms = t0 + GIT_EVERY_MS; return; }
+    while (len > 0 && (pre[len - 1] == '\n' || pre[len - 1] == '\r')) pre[--len] = '\0';
+
+    snprintf(cmd, sizeof cmd, "git --no-optional-locks -C %s status --porcelain=v1 -z %s", q, quiet);
+    char *out = read_cmd(cmd, &len);
+    if (out) gitstat_parse(&gstat, out, len, pre);
+    else gitstat_free(&gstat);
+    free(out);
+    free(pre);
+
+    /* A slow repo is polled less often, so the UI never spends most of its time in git. */
+    unsigned long took = term_ticks_ms() - t0;
+    git_next_ms = term_ticks_ms() + (took * 10 > GIT_EVERY_MS ? took * 10 : GIT_EVERY_MS);
+}
+
 /* Picks up files created or deleted outside the tree (saves, chat writes, other programs). */
 static void auto_refresh(void) {
     static unsigned long last_ms = 0;
@@ -187,6 +299,7 @@ static void auto_refresh(void) {
 
 static void refresh_tree(void) {
     if (!tree_ready) return;
+    git_stale = 1;
     char keep[PATH_LEN] = "";
     if (sel >= 0 && sel < tree.n) snprintf(keep, sizeof keep, "%s", tree.rows[sel].rel);
     ft_refresh(&tree);
@@ -474,6 +587,9 @@ void sidebar_draw(void) {
     if (!w) return;
     ensure_tree();
     auto_refresh();
+    unsigned long gnow = term_ticks_ms();
+    /* A changed tree reloads sooner, but never more than twice a second. */
+    if (gnow >= git_next_ms || (git_stale && gnow - git_last_ms >= 500)) load_git();
     clamp_view();
     int cw = w - 1;
     int vr = view_rows();
@@ -504,6 +620,14 @@ void sidebar_draw(void) {
             if (i == sel) fb_puts(has_focus ? options_chrome_sgr(CH_DROP_SEL) : "\x1b[4m");
             else if (*act && strcmp(row->rel, act) == 0) fb_puts("\x1b[1m");
             else if (row->is_dir) fb_puts("\x1b[1m");
+            if (i != sel || !has_focus) {
+                GitKind gk = gitstat_file(&gstat, row->rel);
+                if (row->is_dir) {
+                    GitKind in = gitstat_dir(&gstat, row->rel);
+                    if (in > gk) gk = in;
+                }
+                fb_puts(options_git_sgr(gk));
+            }
             put_cells(line, n, cw);
         } else {
             put_cells("", 0, cw);

@@ -281,3 +281,21 @@ static const char *chrome_sgr[4][CH_COUNT] = {
 const char *options_chrome_sgr(ChromeKind kind) {
     return chrome_sgr[options.scheme][kind];
 }
+
+/* Git status colors for the file tree, indexed [scheme][GitKind]. Foreground only (no reset),
+   so they combine with the row's bold and base colors. Light needs darker shades. */
+static const char *git_sgr[4][GK_COUNT] = {
+    /* Default */
+    {"", "\x1b[32m", "\x1b[32m", "\x1b[36m", "\x1b[31m", "\x1b[33m", "\x1b[1;31m"},
+    /* Blue */
+    {"", "\x1b[92m", "\x1b[92m", "\x1b[96m", "\x1b[91m", "\x1b[93m", "\x1b[1;91m"},
+    /* Light */
+    {"", "\x1b[32m", "\x1b[32m", "\x1b[36m", "\x1b[31m", "\x1b[38;5;130m", "\x1b[1;31m"},
+    /* Slate */
+    {"", "\x1b[38;5;108m", "\x1b[38;5;108m", "\x1b[38;5;73m", "\x1b[38;5;167m",
+     "\x1b[38;5;179m", "\x1b[1;38;5;203m"},
+};
+
+const char *options_git_sgr(GitKind kind) {
+    return git_sgr[options.scheme][kind];
+}

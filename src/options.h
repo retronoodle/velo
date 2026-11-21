@@ -2,6 +2,8 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H
 
+#include "gitstat.h"
+
 typedef struct {
     int tab_width;   /* spaces inserted by Tab: 2, 4 or 8 */
     int crlf;        /* 1 = save with CRLF line endings, 0 = LF */
@@ -57,5 +59,8 @@ typedef enum {
 /* SGR for a chrome element in the current scheme. Each starts with a reset,
    except CH_WARN, which only changes the foreground. */
 const char *options_chrome_sgr(ChromeKind kind);
+
+/* Foreground SGR (no reset) for a file tree entry's git status; "" for GK_NONE. */
+const char *options_git_sgr(GitKind kind);
 
 #endif

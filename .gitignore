@@ -36,3 +36,5 @@ test_fileops.exe
 test_plans
 test_aiweb
 test_aiweb.exe
+test_gitstat
+test_gitstat.exe
