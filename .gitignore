@@ -34,3 +34,5 @@ test_filetree.exe
 test_fileops
 test_fileops.exe
 test_plans
+test_aiweb
+test_aiweb.exe

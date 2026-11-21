@@ -83,8 +83,8 @@ int ai_write_temp(char *path, size_t n, const char *data) {
 
 /* Runs the curl command and reads all of its output into *buf (malloc'd).
    Returns the exit status, or -1 if it could not run. *too_big is set if the
-   output passed AI_MAX_REPLY. */
-static int run_curl(const char *cmd, char **buf, size_t *len, int *too_big) {
+   output passed max_bytes. */
+int ai_run_curl(const char *cmd, char **buf, size_t *len, int *too_big, size_t max_bytes) {
 #ifdef _WIN32
     FILE *p = _popen(cmd, "r");
 #else
@@ -124,7 +124,7 @@ static int run_curl(const char *cmd, char **buf, size_t *len, int *too_big) {
         n = fread(chunk, 1, sizeof chunk, p);
 #endif
         if (n == 0) break;
-        if (*len + n + 1 > AI_MAX_REPLY) {
+        if (*len + n + 1 > max_bytes) {
             *too_big = 1;   /* stop reading; curl gets SIGPIPE and exits */
             break;
         }
@@ -207,7 +207,7 @@ static char *post_json(const char *body, char *err, int errsize) {
 
     size_t len;
     int too_big;
-    int status = run_curl(cmd, &buf, &len, &too_big);
+    int status = ai_run_curl(cmd, &buf, &len, &too_big, AI_MAX_REPLY);
     if (!buf) {
         set_err(err, errsize, "Could not run curl (is it installed?)");
         goto done;

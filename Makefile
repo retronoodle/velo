@@ -3,8 +3,8 @@ CFLAGS=-Wall -Wextra -std=c99
 TARGET=velo
 SRC=src
 TESTDIR=tests
-SOURCES=$(SRC)/clipcodec.c $(SRC)/velo.c $(SRC)/term.c $(SRC)/buffer.c $(SRC)/ui.c $(SRC)/files.c $(SRC)/undo.c $(SRC)/clipboard.c $(SRC)/search.c $(SRC)/utf8.c $(SRC)/menu.c $(SRC)/options.c $(SRC)/recovery.c $(SRC)/mouse.c $(SRC)/tabs.c $(SRC)/recent.c $(SRC)/syntax.c $(SRC)/gitinfo.c $(SRC)/gitmodal.c $(SRC)/watch.c $(SRC)/aisetup.c $(SRC)/ai.c $(SRC)/aiask.c $(SRC)/aiwait.c $(SRC)/aiedit.c $(SRC)/aiexplain.c $(SRC)/viewer.c $(SRC)/fuzzy.c $(SRC)/quickopen.c $(SRC)/diffcap.c $(SRC)/gitpush.c $(SRC)/msgedit.c $(SRC)/brace.c $(SRC)/aiasync.c $(SRC)/aicomplete.c $(SRC)/aitools.c $(SRC)/aichat.c $(SRC)/chatmd.c $(SRC)/aiinstr.c $(SRC)/linediff.c $(SRC)/filetree.c $(SRC)/fileops.c $(SRC)/sidebar.c $(SRC)/plans.c
-HEADERS=$(SRC)/clipcodec.h $(SRC)/editor.h $(SRC)/term.h $(SRC)/buffer.h $(SRC)/ui.h $(SRC)/files.h $(SRC)/undo.h $(SRC)/clipboard.h $(SRC)/search.h $(SRC)/utf8.h $(SRC)/menu.h $(SRC)/options.h $(SRC)/recovery.h $(SRC)/mouse.h $(SRC)/tabs.h $(SRC)/recent.h $(SRC)/syntax.h $(SRC)/gitinfo.h $(SRC)/gitmodal.h $(SRC)/watch.h $(SRC)/aisetup.h $(SRC)/ai.h $(SRC)/aiask.h $(SRC)/aiwait.h $(SRC)/aiedit.h $(SRC)/aiexplain.h $(SRC)/viewer.h $(SRC)/fuzzy.h $(SRC)/quickopen.h $(SRC)/diffcap.h $(SRC)/gitpush.h $(SRC)/msgedit.h $(SRC)/brace.h $(SRC)/aiasync.h $(SRC)/aicomplete.h $(SRC)/aitools.h $(SRC)/aichat.h $(SRC)/chatmd.h $(SRC)/aiinstr.h $(SRC)/linediff.h $(SRC)/filetree.h $(SRC)/fileops.h $(SRC)/sidebar.h $(SRC)/plans.h
+SOURCES=$(SRC)/clipcodec.c $(SRC)/velo.c $(SRC)/term.c $(SRC)/buffer.c $(SRC)/ui.c $(SRC)/files.c $(SRC)/undo.c $(SRC)/clipboard.c $(SRC)/search.c $(SRC)/utf8.c $(SRC)/menu.c $(SRC)/options.c $(SRC)/recovery.c $(SRC)/mouse.c $(SRC)/tabs.c $(SRC)/recent.c $(SRC)/syntax.c $(SRC)/gitinfo.c $(SRC)/gitmodal.c $(SRC)/watch.c $(SRC)/aisetup.c $(SRC)/ai.c $(SRC)/aiask.c $(SRC)/aiwait.c $(SRC)/aiedit.c $(SRC)/aiexplain.c $(SRC)/viewer.c $(SRC)/fuzzy.c $(SRC)/quickopen.c $(SRC)/diffcap.c $(SRC)/gitpush.c $(SRC)/msgedit.c $(SRC)/brace.c $(SRC)/aiasync.c $(SRC)/aicomplete.c $(SRC)/aitools.c $(SRC)/aichat.c $(SRC)/chatmd.c $(SRC)/aiinstr.c $(SRC)/linediff.c $(SRC)/filetree.c $(SRC)/fileops.c $(SRC)/sidebar.c $(SRC)/plans.c $(SRC)/aiweb.c $(SRC)/aifetch.c
+HEADERS=$(SRC)/clipcodec.h $(SRC)/editor.h $(SRC)/term.h $(SRC)/buffer.h $(SRC)/ui.h $(SRC)/files.h $(SRC)/undo.h $(SRC)/clipboard.h $(SRC)/search.h $(SRC)/utf8.h $(SRC)/menu.h $(SRC)/options.h $(SRC)/recovery.h $(SRC)/mouse.h $(SRC)/tabs.h $(SRC)/recent.h $(SRC)/syntax.h $(SRC)/gitinfo.h $(SRC)/gitmodal.h $(SRC)/watch.h $(SRC)/aisetup.h $(SRC)/ai.h $(SRC)/aiask.h $(SRC)/aiwait.h $(SRC)/aiedit.h $(SRC)/aiexplain.h $(SRC)/viewer.h $(SRC)/fuzzy.h $(SRC)/quickopen.h $(SRC)/diffcap.h $(SRC)/gitpush.h $(SRC)/msgedit.h $(SRC)/brace.h $(SRC)/aiasync.h $(SRC)/aicomplete.h $(SRC)/aitools.h $(SRC)/aichat.h $(SRC)/chatmd.h $(SRC)/aiinstr.h $(SRC)/linediff.h $(SRC)/filetree.h $(SRC)/fileops.h $(SRC)/sidebar.h $(SRC)/plans.h $(SRC)/aiweb.h $(SRC)/aifetch.h
 TEST=test_utf8
 TEST_SYNTAX=test_syntax
 TEST_OPTIONS=test_options
@@ -22,6 +22,7 @@ TEST_LINEDIFF=test_linediff
 TEST_FILETREE=test_filetree
 TEST_FILEOPS=test_fileops
 TEST_PLANS=test_plans
+TEST_AIWEB=test_aiweb
 
 $(TARGET): $(SOURCES) $(HEADERS)
 	$(CC) $(CFLAGS) -I$(SRC) -o $(TARGET) $(SOURCES)
@@ -77,7 +78,10 @@ $(TEST_FILEOPS): $(TESTDIR)/test_fileops.c $(SRC)/fileops.c $(SRC)/fileops.h
 $(TEST_PLANS): $(TESTDIR)/test_plans.c $(SRC)/plans.c $(SRC)/plans.h $(SRC)/recent.c $(SRC)/recent.h
 	$(CC) $(CFLAGS) -I$(SRC) -o $(TEST_PLANS) $(TESTDIR)/test_plans.c $(SRC)/plans.c $(SRC)/recent.c
 
-test: $(TEST_PLANS) $(TEST_FILETREE) $(TEST_FILEOPS) $(TEST_LINEDIFF) $(TEST_AIINSTR) $(TEST_CHATMD) $(TEST_AITOOLS) $(TEST_BRACE) $(TEST) $(TEST_SYNTAX) $(TEST_OPTIONS) $(TEST_CLIPCODEC) $(TEST_AI) $(TEST_FUZZY) $(TEST_DIFFCAP) $(TEST_GITPUSH) $(TEST_MSGEDIT)
+$(TEST_AIWEB): $(TESTDIR)/test_aiweb.c $(SRC)/aiweb.c $(SRC)/aiweb.h
+	$(CC) $(CFLAGS) -I$(SRC) -o $(TEST_AIWEB) $(TESTDIR)/test_aiweb.c $(SRC)/aiweb.c
+
+test: $(TEST_AIWEB) $(TEST_PLANS) $(TEST_FILETREE) $(TEST_FILEOPS) $(TEST_LINEDIFF) $(TEST_AIINSTR) $(TEST_CHATMD) $(TEST_AITOOLS) $(TEST_BRACE) $(TEST) $(TEST_SYNTAX) $(TEST_OPTIONS) $(TEST_CLIPCODEC) $(TEST_AI) $(TEST_FUZZY) $(TEST_DIFFCAP) $(TEST_GITPUSH) $(TEST_MSGEDIT)
 	./$(TEST)
 	./$(TEST_SYNTAX)
 	./$(TEST_OPTIONS)
@@ -95,6 +99,7 @@ test: $(TEST_PLANS) $(TEST_FILETREE) $(TEST_FILEOPS) $(TEST_LINEDIFF) $(TEST_AII
 	./$(TEST_FILETREE)
 	./$(TEST_FILEOPS)
 	./$(TEST_PLANS)
+	./$(TEST_AIWEB)
 
 ifeq ($(OS),Windows_NT)
 EXE=.exe
@@ -105,6 +110,6 @@ RM=rm -f
 endif
 
 clean:
-	$(RM) $(TARGET)$(EXE) $(TEST)$(EXE) $(TEST_SYNTAX)$(EXE) $(TEST_OPTIONS)$(EXE) $(TEST_CLIPCODEC)$(EXE) $(TEST_AI)$(EXE) $(TEST_FUZZY)$(EXE) $(TEST_DIFFCAP)$(EXE) $(TEST_GITPUSH)$(EXE) $(TEST_MSGEDIT)$(EXE) $(TEST_BRACE)$(EXE) $(TEST_AITOOLS)$(EXE) $(TEST_CHATMD)$(EXE) $(TEST_AIINSTR)$(EXE) $(TEST_LINEDIFF)$(EXE) $(TEST_FILETREE)$(EXE) $(TEST_FILEOPS)$(EXE) $(TEST_PLANS)$(EXE)
+	$(RM) $(TARGET)$(EXE) $(TEST)$(EXE) $(TEST_SYNTAX)$(EXE) $(TEST_OPTIONS)$(EXE) $(TEST_CLIPCODEC)$(EXE) $(TEST_AI)$(EXE) $(TEST_FUZZY)$(EXE) $(TEST_DIFFCAP)$(EXE) $(TEST_GITPUSH)$(EXE) $(TEST_MSGEDIT)$(EXE) $(TEST_BRACE)$(EXE) $(TEST_AITOOLS)$(EXE) $(TEST_CHATMD)$(EXE) $(TEST_AIINSTR)$(EXE) $(TEST_LINEDIFF)$(EXE) $(TEST_FILETREE)$(EXE) $(TEST_FILEOPS)$(EXE) $(TEST_PLANS)$(EXE) $(TEST_AIWEB)$(EXE)
 
 .PHONY: clean test

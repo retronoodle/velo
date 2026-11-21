@@ -22,4 +22,9 @@ int ai_ask_chat(const char *system, const char *const *msgs, int n, int use_tool
    The caller removes the file. */
 int ai_write_temp(char *path, size_t n, const char *data);
 
+/* Runs a curl command line and reads its output into *buf (malloc'd, NUL-terminated), ticking
+   the aiwait spinner every 100 ms on POSIX. Returns curl's exit status or -1. *too_big is set
+   when the output passed max_bytes (reading stops there). */
+int ai_run_curl(const char *cmd, char **buf, size_t *len, int *too_big, size_t max_bytes);
+
 #endif

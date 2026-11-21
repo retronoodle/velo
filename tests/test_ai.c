@@ -331,7 +331,10 @@ int main(void) {
         char *nm = ai_json_get_string(tj, "3.name");
         if (!nm || strcmp(nm, "open_tabs") != 0) { printf("FAIL tools anth\n"); failures++; }
         free(nm);
-        nm = ai_json_get_string(tj, "5.name");
+        nm = ai_json_get_string(tj, "4.name");
+        if (!nm || strcmp(nm, "fetch_url") != 0) { printf("FAIL tools anth fetch_url\n"); failures++; }
+        free(nm);
+        nm = ai_json_get_string(tj, "6.name");
         if (!nm || strcmp(nm, "edit_file") != 0) { printf("FAIL tools anth edit_file\n"); failures++; }
         free(nm); free(tj);
         tj = ai_chat_tools_json("openai");
@@ -345,8 +348,8 @@ int main(void) {
         free(tj);
         tj = ai_chat_tools_json_ro("openai");
         if (!tj || strstr(tj, "write_file") || strstr(tj, "edit_file") || !strstr(tj, "read_file")) { printf("FAIL ro tools oai\n"); failures++; }
-        nm = ai_json_get_string(tj, "3.function.name");
-        if (!nm || strcmp(nm, "open_tabs") != 0) { printf("FAIL ro tools oai last\n"); failures++; }
+        nm = ai_json_get_string(tj, "4.function.name");
+        if (!nm || strcmp(nm, "fetch_url") != 0) { printf("FAIL ro tools oai last\n"); failures++; }
         free(nm); free(tj);
 
         /* Fenced file extraction */
