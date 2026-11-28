@@ -269,6 +269,11 @@ int getch_cp(void) {
     return ch;
 }
 
+/* Windows sends Alt+key as a key event, not an ESC prefix, so there is nothing extra to eat. */
+int getch_prompt(void) {
+    return getch_cp();
+}
+
 int getch_impl(void) {
     return getch_cp();
 }
@@ -465,6 +470,25 @@ int getch_cp() {
         if (cp == 0xA0) return KEY_ALT_SPACE;   // macOS Option+Space without Option-as-Alt
         return cp;
     }
+}
+
+/* Y/N and Esc prompts. An Esc answers the prompt, but the rest of what it
+   started must not be typed later: an Alt+key chord (ESC then a printable byte)
+   or an arrow's CSI sequence (ESC [ ... final). getch_cp() puts those bytes back,
+   so eat them here. A second Esc is left for the next read. */
+int getch_prompt(void) {
+    int c = getch_cp();
+    if (c != 27) return c;
+    int b = posix_getc();
+    if (b == '[' || b == 'O') {
+        int f;
+        do {
+            f = posix_getc();
+        } while (f != EOF && (f < 0x40 || f > 0x7E));
+    } else if (b != EOF && !(b >= 0x20 && b < 0x7F)) {
+        ungetc(b, stdin);
+    }
+    return 27;
 }
 #endif
 

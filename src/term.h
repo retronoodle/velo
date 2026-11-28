@@ -16,6 +16,7 @@ void set_cursor_visibility(int visible);
 int kbhit(void);
 int getch_impl(void);
 int getch_cp(void);     /* next typed character as a Unicode code point, 0 for non-text keys, -1 on EOF */
+int getch_prompt(void); /* getch_cp() for Y/N prompts: an Esc also eats the Alt+key or arrow bytes that follow it */
 
 #ifdef _WIN32
 void configure_console(void);

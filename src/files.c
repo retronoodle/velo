@@ -71,7 +71,7 @@ static int confirm_overwrite(const char *name) {
     fflush(stdout);
 
     while (1) {
-        int c = getch_cp();
+        int c = getch_prompt();
         if (c == 'y' || c == 'Y') return 1;
         if (c == 'n' || c == 'N' || c == 27) return 0;
     }
@@ -123,7 +123,7 @@ static int confirm_discard(void) {
     fflush(stdout);
 
     while (1) {
-        int c = getch_cp();
+        int c = getch_prompt();
         if (c == 'y' || c == 'Y') return do_save();
         if (c == 'n' || c == 'N') {
             recovery_discard_name(editor.filename);   /* changes are being thrown away */

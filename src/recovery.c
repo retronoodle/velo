@@ -96,7 +96,7 @@ static int offer_restore(void) {
     fflush(stdout);
 
     while (1) {
-        int c = getch_cp();
+        int c = getch_prompt();
         if (c == 'y' || c == 'Y') {
             load_stream(in);
             fclose(in);

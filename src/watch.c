@@ -95,7 +95,7 @@ static void ask_reload(void) {
     fflush(stdout);
 
     while (1) {
-        int c = getch_cp();
+        int c = getch_prompt();
         if (c == 'y' || c == 'Y') {
             reload_from_disk();
             return;
